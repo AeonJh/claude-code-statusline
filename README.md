@@ -56,7 +56,7 @@ Turn the blank status bar into a real-time dashboard: model, context usage with 
 ### Quick install
 
 ```bash
-git clone https://github.com/kcchien/claude-code-statusline.git
+git clone https://github.com/AeonJh/claude-code-statusline.git
 cd claude-code-statusline
 ./install.sh
 ```
@@ -110,12 +110,12 @@ Most users don't realize how much context their startup configuration consumes. 
 This fork adds a **boot cost snapshot**: the first time the status line runs in a session, it records the current context usage as your "boot cost." From then on:
 
 - The **progress bar** splits into three zones: dark gray (boot) → gradient (chat) → empty
-- A **`(boot N%)`** label appears next to the percentage, in gray
+- A **`(N%)`** label appears next to the percentage, in gray
 
 ```
-◆ Opus 4 │ ██████░░░░ 45% (boot 27%) 1M │ $1.20 │ 10m0s
-           ^^          ^^^^
-           boot(dark)  chat(gradient)
+◆ Opus 4 | ██████░░░░ 45% (27%) 1M | $1.20 | 󰔟10m0s
+           ^^^^  ^^^^
+     boot(dark)  chat(gradient)
 ```
 
 The boot snapshot is stored in `/tmp/claude-statusline-boot` and resets with each new session.

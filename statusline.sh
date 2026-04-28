@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # ~/.claude/statusline.sh — Claude Code session status line (aesthetic edition)
 #
-# 三行輸出：
-#   第一行：◆ 模型 │ 漸層進度條 百分比 │ 費用 │ 時間 │ 速率限制
-#   第二行：⎇分支* │ +增/-減 │ 目錄
-#   第三行：❯ 提示符（顏色跟上下文用量連動）
+# 兩行輸出：
+#   第一行：◆ 模型 | 漸層進度條 百分比 | 費用 | 時間 | 速率限制
+#   第二行：⎇分支* | +增/-減 | 目錄
 #
 # 環境變數：
 #   CLAUDE_STATUSLINE_ASCII=1     退回純 ASCII
@@ -62,11 +61,11 @@ elif [[ "$USE_NERDFONT" == "1" ]]; then
   S_WARN=" 󰀦"
   S_PROMPT="❯"
   S_TIME="󰔟 "
-  S_COST=" "
+  S_COST=""
   if [[ "$USE_POWERLINE" == "1" ]]; then
     SEP="  "
   else
-    SEP=" │ "
+    SEP=" | "
   fi
 else
   S_BRAND="◆"
@@ -78,7 +77,7 @@ else
   if [[ "$USE_POWERLINE" == "1" ]]; then
     SEP="  "
   else
-    SEP=" │ "
+    SEP=" | "
   fi
 fi
 
@@ -214,7 +213,7 @@ fi
 # boot 標籤（灰色小字，持續提醒）
 boot_label=""
 if (( boot_pct > 0 )); then
-  boot_label=" ${GRAY}(boot ${boot_pct}%)${RST}"
+  boot_label=" ${GRAY}(${boot_pct}%)${RST}"
 fi
 
 # 百分比文字顏色（跟進度條整體色一致）
@@ -257,11 +256,21 @@ dur_ms=${duration_ms:-0}
 dur_section=""
 if (( dur_ms > 0 )); then
   dur_sec=$((dur_ms / 1000))
+  dur_rem_sec=$((dur_sec % 60))
   dur_min=$((dur_sec / 60))
-  dur_s=$((dur_sec % 60))
+  dur_rem_min=$((dur_min % 60))
+  dur_hour=$((dur_min / 60))
+  dur_rem_hour=$((dur_hour % 24))
+  dur_day=$((dur_hour / 24))
   # 格式化後仍為 0m0s 就不顯示（session 啟動初期 dur_ms 可能是幾百毫秒）
-  if (( dur_min > 0 || dur_s > 0 )); then
-    dur_section="${SEP}${GRAY}${S_TIME}${dur_min}m${dur_s}s${RST}"
+  if (( dur_day > 0 )); then
+    dur_section="${SEP}${GRAY}${S_TIME}${dur_day}d${dur_rem_hour}h${dur_rem_min}m${RST}"
+  elif (( dur_hour > 0 )); then
+    dur_section="${SEP}${GRAY}${S_TIME}${dur_hour}h${dur_rem_min}m${dur_rem_sec}s${RST}"
+  elif (( dur_min > 0 )); then
+    dur_section="${SEP}${GRAY}${S_TIME}${dur_min}m${dur_rem_sec}s${RST}"
+  elif (( dur_sec > 0 )); then
+    dur_section="${SEP}${GRAY}${S_TIME}${dur_rem_sec}s${RST}"
   fi
 fi
 
@@ -357,7 +366,11 @@ else prompt_color="$GREEN"; fi
 # ═══════════════════════════════════════════════════════════════
 
 line1="${PURPLE}${S_BRAND}${RST} ${CYAN}${model}${RST}"
-line1+="${SEP}${bar} ${pct_color}${pct_int}%${RST}${boot_label}${ctx_warn}${ctx_label}"
+line1+="${SEP}${bar} ${pct_color}${pct_int}%${RST}${ctx_warn}"
+if [[ -n "$boot_label" ]] && (( pct_int > boot_pct )); then
+  line1+="${boot_label}"
+fi
+line1+="${ctx_label}"
 line1+="${SEP}${cost_color}${S_COST}\$${cost_fmt}${RST}"
 line1+="${dur_section}"
 line1+="${rate_section}"
@@ -368,13 +381,13 @@ line1+="${rate_section}"
 
 parts=()
 # PS1-style user@host prefix (from ~/.bashrc PS1)
-parts+=("${GREEN}$(whoami)@$(hostname -s)${RST}:${BLUE}${cwd_full}${RST}")
 if [[ -n "$git_branch" ]]; then
   parts+=("${GRAY}${S_BRANCH}${git_branch}${dirty}${RST}")
 fi
 if [[ -n "$lines_section" ]]; then
   parts+=("${lines_section}")
 fi
+parts+=("${BLUE}${dir}${RST}")
 
 # Agent / Worktree 指示器（僅在非主 session 時顯示）
 if [[ -n "${wt_name:-}" ]]; then

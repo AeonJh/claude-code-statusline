@@ -27,7 +27,7 @@ if [[ -f "$SCRIPT_DIR/statusline.sh" ]]; then
   cp "$SCRIPT_DIR/statusline.sh" "$TARGET"
 else
   echo "Downloading statusline.sh..."
-  curl -fsSL "https://raw.githubusercontent.com/kcchien/claude-code-statusline/main/statusline.sh" -o "$TARGET"
+  curl -fsSL "https://raw.githubusercontent.com/AeonJh/claude-code-statusline/main/statusline.sh" -o "$TARGET"
 fi
 chmod +x "$TARGET"
 echo "✓ Installed to $TARGET"

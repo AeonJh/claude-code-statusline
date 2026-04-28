@@ -2,7 +2,7 @@
 # test-mock.sh — Test statusline.sh with mock JSON data
 #
 # Usage: ./examples/test-mock.sh [scenario]
-# Scenarios: normal, warning, danger, startup, agent, worktree, ascii, nerdfont
+# Scenarios: normal, warning, danger, startup, boot, agent, worktree, ascii, nerdfont
 
 set -euo pipefail
 
@@ -43,6 +43,23 @@ JSON_AGENT='{"model":{"display_name":"Claude Opus 4.6"},"context_window":{"used_
 
 JSON_WORKTREE='{"model":{"display_name":"Claude Opus 4.6"},"context_window":{"used_percentage":42,"context_window_size":1000000},"cost":{"total_cost_usd":0.85,"total_lines_added":150,"total_lines_removed":30,"total_duration_ms":222000},"workspace":{"current_dir":"/Users/dev/my-project"},"worktree":{"branch":"worktree-my-feature","name":"my-feature","path":"/path/to/worktree"}}'
 
+JSON_BOOT='{"model":{"display_name":"Claude Opus 4.6"},"context_window":{"used_percentage":45,"context_window_size":1000000},"cost":{"total_cost_usd":1.20,"total_lines_added":80,"total_lines_removed":10,"total_duration_ms":600000},"workspace":{"current_dir":"/Users/dev/my-project"},"worktree":{"branch":"main"}}'
+
+run_boot_test() {
+  local BOOT_CACHE="/tmp/claude-statusline-boot"
+  local prev_boot=""
+  [[ -f "$BOOT_CACHE" ]] && prev_boot=$(cat "$BOOT_CACHE")
+
+  echo "27" > "$BOOT_CACHE"
+  run_test "Boot cost (45% total, 27% boot)" "$JSON_BOOT"
+
+  if [[ -n "$prev_boot" ]]; then
+    echo "$prev_boot" > "$BOOT_CACHE"
+  else
+    rm -f "$BOOT_CACHE"
+  fi
+}
+
 # ── Run tests ──
 
 case "${SCRIPT}" in
@@ -50,6 +67,7 @@ case "${SCRIPT}" in
   warning)  run_test "Warning (75%, yellow)" "$JSON_WARNING" ;;
   danger)   run_test "Danger (92%, red + ⚠)" "$JSON_DANGER" ;;
   startup)  run_test "Session startup (zero values hidden)" "$JSON_STARTUP" ;;
+  boot)     run_boot_test ;;
   agent)    run_test "Agent mode (code-reviewer)" "$JSON_AGENT" ;;
   worktree) run_test "Worktree mode (my-feature)" "$JSON_WORKTREE" ;;
   ascii)    run_test "ASCII fallback" "$JSON_NORMAL" "CLAUDE_STATUSLINE_ASCII=1" ;;
@@ -59,6 +77,7 @@ case "${SCRIPT}" in
     run_test "Warning (75%, yellow)" "$JSON_WARNING"
     run_test "Danger (92%, red + ⚠)" "$JSON_DANGER"
     run_test "Session startup (zero values hidden)" "$JSON_STARTUP"
+    run_boot_test
     run_test "Agent mode (code-reviewer)" "$JSON_AGENT"
     run_test "Worktree mode (my-feature)" "$JSON_WORKTREE"
     run_test "ASCII fallback" "$JSON_NORMAL" "CLAUDE_STATUSLINE_ASCII=1"
@@ -66,7 +85,7 @@ case "${SCRIPT}" in
     ;;
   *)
     echo "Unknown scenario: $SCRIPT"
-    echo "Available: normal, warning, danger, startup, agent, worktree, ascii, nerdfont, all"
+    echo "Available: normal, warning, danger, startup, boot, agent, worktree, ascii, nerdfont, all"
     exit 1
     ;;
 esac

@@ -56,7 +56,7 @@
 ### 快速安裝
 
 ```bash
-git clone https://github.com/kcchien/claude-code-statusline.git
+git clone https://github.com/AeonJh/claude-code-statusline.git
 cd claude-code-statusline
 ./install.sh
 ```
@@ -106,12 +106,12 @@ export CLAUDE_STATUSLINE_NERDFONT=1  # 啟用 Nerd Font 圖示 + Powerline 箭�
 這個 fork 加入了**啟動成本快照**：狀態列在 session 中第一次執行時，會記錄當下的上下文用量作為「啟動成本」。之後：
 
 - **進度條**分為三個區域：暗灰（啟動）→ 漸層（對話）→ 空白
-- 百分比旁邊會出現灰色的 **`(boot N%)`** 標籤
+- 百分比旁邊會出現灰色的 **`(N%)`** 標籤
 
 ```
-◆ Opus 4 │ ██████░░░░ 45% (boot 27%) 1M │ $1.20 │ 10m0s
-           ^^          ^^^^
-           啟動(暗灰)   對話(漸層)
+◆ Opus 4 | ██████░░░░ 45% (27%) 1M | $1.20 | 󰔟10m0s
+           ^^^^  ^^^^
+     啟動(暗灰)  對話(漸層)
 ```
 
 啟動快照存在 `/tmp/claude-statusline-boot`，每次新 session 自動重置。
