@@ -92,12 +92,28 @@ chmod +x ~/.claude/statusline.sh
 | `CLAUDE_STATUSLINE_ASCII` | `0` | 設為 `1` 啟用純 ASCII 模式（無 Unicode） |
 | `CLAUDE_STATUSLINE_NERDFONT` | `0` | 設為 `1` 啟用 [Nerd Font](https://www.nerdfonts.com/) 圖示 |
 | `CLAUDE_STATUSLINE_POWERLINE` | 跟隨 NERDFONT | 設為 `1` 啟用 Powerline 箭頭分隔符 |
+| `CLAUDE_STATUSLINE_MODEL_CACHE` | `/tmp/cliproxy-model.json` | 代理模型 metadata 快取，用於上下文視窗大小回退 |
+| `CLAUDE_STATUSLINE_QUOTA_CACHE` | `/tmp/cliproxy-quota.json` | 代理配額快取，用於速率限制回退 |
 | `COLORTERM` | （系統自動） | `truecolor` 或 `24bit` 時啟用漸層進度條 |
 
 ```bash
 # 範例：在 ~/.zshrc 中
 export CLAUDE_STATUSLINE_NERDFONT=1  # 啟用 Nerd Font 圖示 + Powerline 箭頭
 ```
+
+### 代理快取回退
+
+透過 CLIProxyAPI/cc-switch 等代理使用 Claude Code 時，原生 `context_window_size` 和 `rate_limits` 欄位可能缺失。狀態列可讀本地 JSON 快取，不直接抓 WebUI HTML：
+
+```json
+{"actual_model":"gpt-5.5","max_context_tokens":400000}
+```
+
+```json
+{"five_hour":{"cap":160,"used":48},"seven_day":{"cap":800,"remaining":600}}
+```
+
+配額快取也可直接提供 `used_percentage`。
 
 ## 啟動成本指示器
 

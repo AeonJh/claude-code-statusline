@@ -94,6 +94,8 @@ All configuration is via environment variables. Add them to your `~/.zshrc` or `
 | `CLAUDE_STATUSLINE_ASCII` | `0` | Set to `1` for pure ASCII mode (no Unicode) |
 | `CLAUDE_STATUSLINE_NERDFONT` | `0` | Set to `1` to enable [Nerd Font](https://www.nerdfonts.com/) icons |
 | `CLAUDE_STATUSLINE_POWERLINE` | follows NERDFONT | Set to `1` for Powerline arrow separators |
+| `CLAUDE_STATUSLINE_MODEL_CACHE` | `/tmp/cliproxy-model.json` | Proxy model metadata cache for context window fallback |
+| `CLAUDE_STATUSLINE_QUOTA_CACHE` | `/tmp/cliproxy-quota.json` | Proxy quota cache for rate-limit fallback |
 | `COLORTERM` | (system) | `truecolor` or `24bit` enables gradient progress bar |
 
 Example:
@@ -102,6 +104,20 @@ Example:
 # In ~/.zshrc
 export CLAUDE_STATUSLINE_NERDFONT=1  # Enable Nerd Font icons + Powerline arrows
 ```
+
+### Proxy cache fallback
+
+When Claude Code runs through a proxy such as CLIProxyAPI/cc-switch, native `context_window_size` and `rate_limits` fields may be missing. The status line can read local JSON caches instead of scraping WebUI HTML:
+
+```json
+{"actual_model":"gpt-5.5","max_context_tokens":400000}
+```
+
+```json
+{"five_hour":{"cap":160,"used":48},"seven_day":{"cap":800,"remaining":600}}
+```
+
+The quota cache also accepts `used_percentage` directly.
 
 ## Boot cost indicator
 
