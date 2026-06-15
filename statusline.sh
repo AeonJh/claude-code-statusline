@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # ~/.claude/statusline.sh — Claude Code session status line (aesthetic edition)
 #
-# 兩行輸出：
-#   第一行：◆ 模型 | 漸層進度條 百分比 | 費用 | 時間 | 速率限制
-#   第二行：⎇分支* | +增/-減 | 目錄
+# 輸出：◆ 模型 | 漸層進度條 百分比 | 費用 | 時間 | 速率限制
 #
 # 環境變數：
 #   CLAUDE_STATUSLINE_ASCII=1       退回純 ASCII
@@ -102,17 +100,10 @@ parsed=$(echo "$input" | jq -r '
   (.model.display_name // ""),
   (.context_window.used_percentage // 0 | tostring),
   (.cost.total_cost_usd // 0 | tostring),
-  (.workspace.current_dir // "." | split("/") | last),
-  (.worktree.branch // ""),
   (.rate_limits.five_hour.used_percentage // -1 | tostring),
   (.rate_limits.seven_day.used_percentage // -1 | tostring),
-  (.agent.name // ""),
-  (.workspace.current_dir // "."),
-  (.cost.total_lines_added // 0 | tostring),
-  (.cost.total_lines_removed // 0 | tostring),
   (.cost.total_duration_ms // 0 | tostring),
   (.context_window.context_window_size // 0 | tostring),
-  (.worktree.name // ""),
   "END"
 ' 2>/dev/null) || fallback_prompt "─ │ parse error"
 
@@ -120,17 +111,10 @@ parsed=$(echo "$input" | jq -r '
   IFS= read -r model_name
   IFS= read -r ctx_pct
   IFS= read -r cost
-  IFS= read -r dir
-  IFS= read -r branch
   IFS= read -r rate5h
   IFS= read -r rate7d
-  IFS= read -r agent_name
-  IFS= read -r cwd_full
-  IFS= read -r lines_add
-  IFS= read -r lines_rm
   IFS= read -r duration_ms
   IFS= read -r ctx_size
-  IFS= read -r wt_name
   IFS= read -r _sentinel
 } <<< "$parsed"
 
@@ -278,63 +262,6 @@ if (( dur_ms > 0 )); then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# Git 分支與髒標記（帶快取）
-# ═══════════════════════════════════════════════════════════════
-
-GIT_CACHE="/tmp/claude-statusline-git-cache"
-GIT_CACHE_MAX_AGE=5
-
-git_branch="${branch:-}"
-dirty=""
-
-git_cache_is_stale() {
-  [[ ! -f "$GIT_CACHE" ]] && return 0
-  local mtime
-  mtime=$(stat -c %Y "$GIT_CACHE" 2>/dev/null || stat -f %m "$GIT_CACHE" 2>/dev/null || echo 0)
-  local cache_age=$(( $(date +%s) - mtime ))
-  (( cache_age > GIT_CACHE_MAX_AGE ))
-}
-
-if [[ -n "${cwd_full:-}" && -d "${cwd_full:-}" ]]; then
-  if git_cache_is_stale; then
-    if git -C "$cwd_full" rev-parse --git-dir &>/dev/null; then
-      cached_branch="${git_branch}"
-      if [[ -z "$cached_branch" ]]; then
-        cached_branch=$(git -C "$cwd_full" -c core.useBuiltinFSMonitor=false branch --show-current 2>/dev/null) || true
-        if [[ -z "$cached_branch" ]]; then
-          cached_branch=$(git -C "$cwd_full" rev-parse --short HEAD 2>/dev/null) || true
-        fi
-      fi
-      cached_dirty=""
-      if ! git -C "$cwd_full" -c core.useBuiltinFSMonitor=false diff --quiet 2>/dev/null || \
-         ! git -C "$cwd_full" -c core.useBuiltinFSMonitor=false diff --cached --quiet 2>/dev/null; then
-        cached_dirty="*"
-      fi
-      echo "${cached_branch}|${cached_dirty}" > "$GIT_CACHE"
-    else
-      echo "|" > "$GIT_CACHE"
-    fi
-  fi
-
-  if [[ -f "$GIT_CACHE" ]]; then
-    IFS='|' read -r cached_br cached_dt < "$GIT_CACHE"
-    if [[ -z "$git_branch" ]]; then git_branch="${cached_br}"; fi
-    dirty="${cached_dt}"
-  fi
-fi
-
-# ═══════════════════════════════════════════════════════════════
-# 行數增減（零值智慧隱藏）
-# ═══════════════════════════════════════════════════════════════
-
-lines_add=${lines_add:-0}
-lines_rm=${lines_rm:-0}
-lines_section=""
-if (( lines_add > 0 || lines_rm > 0 )); then
-  lines_section="${GREEN}+${lines_add}${RST}/${RED}-${lines_rm}${RST}"
-fi
-
-# ═══════════════════════════════════════════════════════════════
 # 速率限制（條件顯示）
 # ═══════════════════════════════════════════════════════════════
 
@@ -357,59 +284,17 @@ if [[ -n "$rate_parts" ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# 動態提示符（顏色跟上下文用量連動）
+# 組裝並輸出
 # ═══════════════════════════════════════════════════════════════
 
-if (( pct_int >= 90 )); then prompt_color="$RED"
-elif (( pct_int >= 70 )); then prompt_color="$YELLOW"
-else prompt_color="$GREEN"; fi
-
-# ═══════════════════════════════════════════════════════════════
-# 組裝第一行
-# ═══════════════════════════════════════════════════════════════
-
-line1="${PURPLE}${S_BRAND}${RST} ${CYAN}${model}${RST}"
-line1+="${SEP}${bar} ${pct_color}${pct_int}%${RST}${ctx_warn}"
+line="${PURPLE}${S_BRAND}${RST} ${CYAN}${model}${RST}"
+line+="${SEP}${bar} ${pct_color}${pct_int}%${RST}${ctx_warn}"
 if [[ -n "$boot_label" ]] && (( pct_int > boot_pct )); then
-  line1+="${boot_label}"
+  line+="${boot_label}"
 fi
-line1+="${ctx_label}"
-line1+="${SEP}${cost_color}${S_COST}\$${cost_fmt}${RST}"
-line1+="${dur_section}"
-line1+="${rate_section}"
+line+="${ctx_label}"
+line+="${SEP}${cost_color}${S_COST}\$${cost_fmt}${RST}"
+line+="${dur_section}"
+line+="${rate_section}"
 
-# ═══════════════════════════════════════════════════════════════
-# 組裝第二行
-# ═══════════════════════════════════════════════════════════════
-
-parts=()
-# PS1-style user@host prefix (from ~/.bashrc PS1)
-if [[ -n "$git_branch" ]]; then
-  parts+=("${GRAY}${S_BRANCH}${git_branch}${dirty}${RST}")
-fi
-if [[ -n "$lines_section" ]]; then
-  parts+=("${lines_section}")
-fi
-parts+=("${BLUE}${dir}${RST}")
-
-# Agent / Worktree 指示器（僅在非主 session 時顯示）
-if [[ -n "${wt_name:-}" ]]; then
-  parts+=("${YELLOW}⚙ worktree:${wt_name}${RST}")
-elif [[ -n "${agent_name:-}" ]]; then
-  parts+=("${YELLOW}⚙ ${agent_name}${RST}")
-fi
-
-line2=""
-for i in "${!parts[@]}"; do
-  if (( i > 0 )); then
-    line2+="${SEP}"
-  fi
-  line2+="${parts[$i]}"
-done
-
-# ═══════════════════════════════════════════════════════════════
-# 輸出
-# ═══════════════════════════════════════════════════════════════
-
-# 只輸出兩行（Claude Code 有自己的輸入提示符，不需要我們的 ❯）
-printf '%b\n%b' "$line1" "$line2"
+printf '%b' "$line"

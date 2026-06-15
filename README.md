@@ -8,7 +8,7 @@
 
 A beautiful, information-dense status line for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — the CLI tool by Anthropic.
 
-Turn the blank status bar into a real-time dashboard: model, context usage with gradient progress bar, cost, duration, git branch, rate limits, and more.
+Turn the blank status bar into a real-time dashboard: model, context usage with gradient progress bar, cost, duration, and rate limits.
 
 ## Preview
 
@@ -35,16 +35,14 @@ Turn the blank status bar into a real-time dashboard: model, context usage with 
 | **Gradient progress bar** | True-color (24-bit) gradient from green → yellow → red. Falls back to ANSI 256 colors or ASCII automatically. |
 | **Smart hiding** | Zero values (`+0/-0`, `0m0s`, rate limits) are hidden. `$0.00` stays but dims. |
 | **Dynamic cost coloring** | Yellow by default, red when > $10. |
-| **Git branch + dirty** | Shows branch name with `*` for uncommitted changes. Cached for 5 seconds to stay fast. |
 | **Rate limits** | 5-hour and 7-day usage (Claude Pro/Max only). Red when > 80%. |
-| **Agent / Worktree indicator** | `⚙ code-reviewer` or `⚙ worktree:my-feature` — only when active. |
 | **Context window size** | Shows `1M` or `200k` only when not already in the model name. |
 | **Brand identity** | `◆` diamond in Anthropic purple (#7266EA). |
 | **3-tier rendering** | True color → ANSI → ASCII. Works in any terminal. |
 | **Nerd Font support** | Optional: ``, `󰔟`, `` icons. Set `CLAUDE_STATUSLINE_NERDFONT=1`. |
 | **Powerline separators** | Optional: `` arrows. Set `CLAUDE_STATUSLINE_POWERLINE=1`. |
 | **Boot cost indicator** | Shows how much context your startup config (CLAUDE.md, rules, memory, skills) consumes — before you even ask a question. Progress bar splits into dark (boot) vs gradient (chat). |
-| **< 50ms** | Single `jq` call + cached git. No perceptible lag. |
+| **< 10ms** | Single `jq` call. No perceptible lag. |
 
 ## Installation
 
@@ -126,12 +124,11 @@ Claude Code's `statusLine` hook sends a JSON payload to your script via stdin af
 
 This script:
 
-1. **Single `jq` call** (~3ms) — parses all 14 fields at once
-2. **Git cache** (~0ms on cache hit, ~40ms on refresh) — dirty check cached for 5 seconds in `/tmp/`
-3. **Smart assembly** — only non-zero sections are rendered
-4. **`printf '%b'`** — interprets ANSI escape codes for the final colored output
+1. **Single `jq` call** (~3ms) — parses all fields at once
+2. **Smart assembly** — only non-zero sections are rendered
+3. **`printf '%b'`** — interprets ANSI escape codes for the final colored output
 
-Total: **< 50ms** end-to-end.
+Total: **< 10ms** end-to-end.
 
 ### Available data from Claude Code
 
@@ -143,9 +140,6 @@ The status line receives [these JSON fields](https://code.claude.com/docs/en/sta
 - `cost.total_duration_ms` — elapsed time
 - `cost.total_lines_added/removed` — code changes
 - `rate_limits.five_hour/seven_day.used_percentage` — rate limits
-- `worktree.branch/name` — git worktree info
-- `agent.name` — subagent name
-- ...and more. See the [official docs](https://code.claude.com/docs/en/statusline).
 
 ## Testing
 

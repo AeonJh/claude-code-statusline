@@ -8,7 +8,7 @@
 
 為 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)（Anthropic 的 CLI 工具）打造的即時狀態列——把空白的底部變成一目了然的 session 儀表板。
 
-模型名稱、上下文用量漸層進度條、花費、經過時間、Git 分支、速率限制……所有你在寫程式時需要用餘光掃到的資訊。
+模型名稱、上下文用量漸層進度條、花費、經過時間、速率限制……所有你在寫程式時需要用餘光掃到的資訊。
 
 ## 預覽
 
@@ -35,16 +35,14 @@
 | **漸層進度條** | 真彩色（24-bit）漸層，從綠到黃到紅。不支援時自動退回 ANSI 256 色或 ASCII。 |
 | **智慧隱藏** | 零值（`+0/-0`、`0m0s`、速率限制）自動隱藏。`$0.00` 保留但用暗灰色。 |
 | **費用動態變色** | 預設黃色，超過 $5 變黃色警告，超過 $10 變紅色。 |
-| **Git 分支 + 髒標記** | 顯示分支名，有未提交變更時加 `*`。快取 5 秒，不拖慢速度。 |
 | **速率限制** | 5 小時和 7 天用量（僅 Claude Pro/Max）。超過 80% 變紅色。 |
-| **Agent / Worktree 指示器** | `⚙ code-reviewer` 或 `⚙ worktree:my-feature`——僅在啟用時顯示。 |
 | **上下文視窗大小** | 顯示 `1M` 或 `200k`，但如果模型名稱已包含此資訊則不重複。 |
 | **品牌識別** | `◆` 菱形，用 Anthropic 品牌紫 (#7266EA) 上色。 |
 | **三層渲染退回** | 真彩色 → ANSI → ASCII。任何終端機都能用。 |
 | **Nerd Font 支援** | 選配：``, `󰔟`, `` 圖示。設定 `CLAUDE_STATUSLINE_NERDFONT=1`。 |
 | **Powerline 分隔符** | 選配：`` 箭頭。設定 `CLAUDE_STATUSLINE_POWERLINE=1`。 |
 | **啟動成本指示器** | 顯示你的啟動配置（CLAUDE.md、rules、memory、skills）吃掉多少上下文——在你開口問之前就已經消耗的量。進度條分色：暗灰（啟動）vs 漸層（對話）。 |
-| **< 50ms** | 單次 `jq` 呼叫 + Git 快取。無感延遲。 |
+| **< 10ms** | 單次 `jq` 呼叫。無感延遲。 |
 
 ## 安裝
 
@@ -122,12 +120,11 @@ Claude Code 的 `statusLine` 機制會在每次助理回覆後，把完整的 se
 
 本腳本的處理流程：
 
-1. **單次 `jq` 呼叫**（~3ms）——一次解析全部 14 個欄位
-2. **Git 快取**（命中 ~0ms，重整 ~40ms）——髒標記結果快取在 `/tmp/`，5 秒更新一次
-3. **智慧組裝**——只有非零的區段才會出現在畫面上
-4. **`printf '%b'`**——最終解釋 ANSI 跳脫碼，輸出彩色結果
+1. **單次 `jq` 呼叫**（~3ms）——一次解析所有欄位
+2. **智慧組裝**——只有非零的區段才會出現在畫面上
+3. **`printf '%b'`**——最終解釋 ANSI 跳脫碼，輸出彩色結果
 
-端到端耗時：**< 50ms**。
+端到端耗時：**< 10ms**。
 
 ### Claude Code 提供的 JSON 資料
 
@@ -139,8 +136,6 @@ Claude Code 的 `statusLine` 機制會在每次助理回覆後，把完整的 se
 - `cost.total_duration_ms` — 經過時間
 - `cost.total_lines_added/removed` — 程式碼變動行數
 - `rate_limits.five_hour/seven_day.used_percentage` — 速率限制
-- `worktree.branch/name` — Git 工作樹資訊
-- `agent.name` — 子代理名稱
 
 ## 測試
 
