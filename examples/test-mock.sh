@@ -2,7 +2,7 @@
 # test-mock.sh — Test statusline.sh with mock JSON data
 #
 # Usage: ./examples/test-mock.sh [scenario]
-# Scenarios: normal, warning, danger, startup, boot, proxy, agent, worktree, ascii, nerdfont
+# Scenarios: normal, warning, danger, startup, boot, agent, worktree, ascii, nerdfont
 
 set -euo pipefail
 
@@ -45,8 +45,6 @@ JSON_WORKTREE='{"model":{"display_name":"Claude Opus 4.6"},"context_window":{"us
 
 JSON_BOOT='{"model":{"display_name":"Claude Opus 4.6"},"context_window":{"used_percentage":45,"context_window_size":1000000},"cost":{"total_cost_usd":1.20,"total_lines_added":80,"total_lines_removed":10,"total_duration_ms":600000},"workspace":{"current_dir":"/Users/dev/my-project"},"worktree":{"branch":"main"}}'
 
-JSON_PROXY='{"model":{"display_name":"GPT-5.5"},"context_window":{"used_percentage":38,"context_window_size":200000},"cost":{"total_cost_usd":0.40,"total_duration_ms":180000},"workspace":{"current_dir":"/Users/dev/proxy-project"},"worktree":{"branch":"main"}}'
-
 run_boot_test() {
   local BOOT_CACHE="/tmp/claude-statusline-boot"
   local prev_boot=""
@@ -62,16 +60,6 @@ run_boot_test() {
   fi
 }
 
-run_proxy_test() {
-  local model_cache="/tmp/claude-statusline-test-model-$$.json"
-  local quota_cache="/tmp/claude-statusline-test-quota-$$.json"
-
-  printf '%s\n' '{"actual_model":"gpt-5.5","max_context_tokens":400000}' > "$model_cache"
-  printf '%s\n' '{"five_hour":{"cap":160,"used":48},"seven_day":{"cap":800,"remaining":600}}' > "$quota_cache"
-  run_test "Proxy cache fallback (400k, quota)" "$JSON_PROXY" "CLAUDE_STATUSLINE_MODEL_CACHE=$model_cache CLAUDE_STATUSLINE_QUOTA_CACHE=$quota_cache"
-  rm -f "$model_cache" "$quota_cache"
-}
-
 # ── Run tests ──
 
 case "${SCRIPT}" in
@@ -80,7 +68,6 @@ case "${SCRIPT}" in
   danger)   run_test "Danger (92%, red + ⚠)" "$JSON_DANGER" ;;
   startup)  run_test "Session startup (zero values hidden)" "$JSON_STARTUP" ;;
   boot)     run_boot_test ;;
-  proxy)    run_proxy_test ;;
   agent)    run_test "Agent mode (code-reviewer)" "$JSON_AGENT" ;;
   worktree) run_test "Worktree mode (my-feature)" "$JSON_WORKTREE" ;;
   ascii)    run_test "ASCII fallback" "$JSON_NORMAL" "CLAUDE_STATUSLINE_ASCII=1" ;;
@@ -91,7 +78,6 @@ case "${SCRIPT}" in
     run_test "Danger (92%, red + ⚠)" "$JSON_DANGER"
     run_test "Session startup (zero values hidden)" "$JSON_STARTUP"
     run_boot_test
-    run_proxy_test
     run_test "Agent mode (code-reviewer)" "$JSON_AGENT"
     run_test "Worktree mode (my-feature)" "$JSON_WORKTREE"
     run_test "ASCII fallback" "$JSON_NORMAL" "CLAUDE_STATUSLINE_ASCII=1"
@@ -99,7 +85,7 @@ case "${SCRIPT}" in
     ;;
   *)
     echo "Unknown scenario: $SCRIPT"
-    echo "Available: normal, warning, danger, startup, boot, proxy, agent, worktree, ascii, nerdfont, all"
+    echo "Available: normal, warning, danger, startup, boot, agent, worktree, ascii, nerdfont, all"
     exit 1
     ;;
 esac

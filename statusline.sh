@@ -9,8 +9,6 @@
 #   CLAUDE_STATUSLINE_ASCII=1       退回純 ASCII
 #   CLAUDE_STATUSLINE_NERDFONT=1    啟用 Nerd Font 圖示
 #   CLAUDE_STATUSLINE_POWERLINE=1   啟用 Powerline 分隔符（預設跟隨 NERDFONT）
-#   CLAUDE_STATUSLINE_MODEL_CACHE   模型上下文快取 JSON
-#   CLAUDE_STATUSLINE_QUOTA_CACHE   代理配額快取 JSON
 #   COLORTERM=truecolor|24bit       系統自動設定，啟用真彩色漸層
 
 set -euo pipefail
@@ -26,9 +24,6 @@ USE_TRUECOLOR="${USE_TRUECOLOR:-0}"
 if [[ "${COLORTERM:-}" == "truecolor" || "${COLORTERM:-}" == "24bit" ]]; then
   USE_TRUECOLOR=1
 fi
-
-MODEL_CACHE="${CLAUDE_STATUSLINE_MODEL_CACHE:-/tmp/cliproxy-model.json}"
-QUOTA_CACHE="${CLAUDE_STATUSLINE_QUOTA_CACHE:-/tmp/cliproxy-quota.json}"
 
 # ═══════════════════════════════════════════════════════════════
 # 色彩與符號
@@ -118,9 +113,6 @@ parsed=$(echo "$input" | jq -r '
   (.cost.total_duration_ms // 0 | tostring),
   (.context_window.context_window_size // 0 | tostring),
   (.worktree.name // ""),
-  (.x_proxy.max_context_tokens // .proxy.max_context_tokens // 0 | tostring),
-  (.x_proxy.quota.five_hour.used_percentage // .proxy.quota.five_hour.used_percentage // -1 | tostring),
-  (.x_proxy.quota.seven_day.used_percentage // .proxy.quota.seven_day.used_percentage // -1 | tostring),
   "END"
 ' 2>/dev/null) || fallback_prompt "─ │ parse error"
 
@@ -139,9 +131,6 @@ parsed=$(echo "$input" | jq -r '
   IFS= read -r duration_ms
   IFS= read -r ctx_size
   IFS= read -r wt_name
-  IFS= read -r proxy_ctx_size
-  IFS= read -r proxy_rate5h
-  IFS= read -r proxy_rate7d
   IFS= read -r _sentinel
 } <<< "$parsed"
 
@@ -238,32 +227,6 @@ if (( pct_int >= 90 )); then ctx_warn="${RED}${S_WARN}${RST}"; fi
 
 # 上下文視窗大小（僅在 model display_name 不包含 context 資訊時才顯示）
 if ! [[ "${ctx_size:-0}" =~ ^[0-9]+$ ]]; then ctx_size=0; fi
-cached_ctx_size=0
-if [[ "${proxy_ctx_size:-0}" =~ ^[0-9]+$ ]] && (( proxy_ctx_size > 0 )); then
-  cached_ctx_size=$proxy_ctx_size
-elif [[ -f "$MODEL_CACHE" ]]; then
-  cached_ctx_size=$(jq -r --arg model "$model" '
-    def norm: ascii_downcase | gsub("[ _]"; "-");
-    ($model | norm) as $m
-    | (
-        .models[$model].max_context_tokens
-        // .models[$m].max_context_tokens
-        // ([(.models // {}) | to_entries[] | select((.key | norm) == $m) | .value.max_context_tokens][0])
-        // .max_context_tokens
-        // .context_window_size
-        // .model.max_context_tokens
-        // .proxy.max_context_tokens
-        // .x_proxy.max_context_tokens
-        // 0
-      )
-    | tostring
-  ' "$MODEL_CACHE" 2>/dev/null || echo 0)
-fi
-if [[ "$cached_ctx_size" =~ ^[0-9]+$ ]] && (( cached_ctx_size > 0 )); then
-  if (( ctx_size <= 0 )) || [[ "$model" != Claude* && "$model" != claude* ]]; then
-    ctx_size=$cached_ctx_size
-  fi
-fi
 ctx_size_int=${ctx_size:-0}
 ctx_label=""
 if [[ "$model" != *context* && "$model" != *Context* ]]; then
@@ -376,40 +339,6 @@ fi
 # ═══════════════════════════════════════════════════════════════
 
 rate_section=""
-rate5h_int=${rate5h%.*}; rate5h_int=${rate5h_int:-0}
-rate7d_int=${rate7d%.*}; rate7d_int=${rate7d_int:-0}
-
-if (( rate5h_int < 0 )) && [[ "${proxy_rate5h:-}" != "-1" ]]; then
-  rate5h=$proxy_rate5h
-fi
-if (( rate7d_int < 0 )) && [[ "${proxy_rate7d:-}" != "-1" ]]; then
-  rate7d=$proxy_rate7d
-fi
-
-rate5h_int=${rate5h%.*}; rate5h_int=${rate5h_int:-0}
-rate7d_int=${rate7d%.*}; rate7d_int=${rate7d_int:-0}
-
-if (( (rate5h_int < 0 || rate7d_int < 0) )) && [[ -f "$QUOTA_CACHE" ]]; then
-  quota_parsed=$(jq -r '
-    def pct($x):
-      if $x == null then -1
-      elif ($x.used_percentage? // null) != null then ($x.used_percentage | tonumber)
-      elif ($x.cap? // null) != null and ($x.used? // null) != null and ($x.cap | tonumber) > 0 then (($x.used | tonumber) * 100 / ($x.cap | tonumber))
-      elif ($x.cap? // null) != null and ($x.remaining? // null) != null and ($x.cap | tonumber) > 0 then (((($x.cap | tonumber) - ($x.remaining | tonumber)) * 100 / ($x.cap | tonumber)))
-      else -1 end;
-    (pct(.rate_limits.five_hour // .quota.five_hour // .proxy.quota.five_hour // .x_proxy.quota.five_hour // .five_hour) | floor | tostring),
-    (pct(.rate_limits.seven_day // .quota.seven_day // .proxy.quota.seven_day // .x_proxy.quota.seven_day // .seven_day) | floor | tostring),
-    "END"
-  ' "$QUOTA_CACHE" 2>/dev/null || printf '%s\n' -1 -1 END)
-  {
-    IFS= read -r cached_rate5h
-    IFS= read -r cached_rate7d
-    IFS= read -r _quota_sentinel
-  } <<< "$quota_parsed"
-  if (( rate5h_int < 0 )); then rate5h=$cached_rate5h; fi
-  if (( rate7d_int < 0 )); then rate7d=$cached_rate7d; fi
-fi
-
 rate5h_int=${rate5h%.*}; rate5h_int=${rate5h_int:-0}
 rate7d_int=${rate7d%.*}; rate7d_int=${rate7d_int:-0}
 
